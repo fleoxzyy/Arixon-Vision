@@ -293,6 +293,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 // ─── Entry Point ───
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    // Single-instance check using a named mutex
+    HANDLE hMutex = CreateMutexA(NULL, TRUE, "ArixonVision_SingleInstance");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        MessageBoxA(NULL,
+            "Arixon Vision is already running!\n\nOnly one instance can run at a time.",
+            "Arixon Vision", MB_ICONINFORMATION | MB_OK);
+        CloseHandle(hMutex);
+        return 0;
+    }
+
     // Init common controls (for progress bar)
     INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_PROGRESS_CLASS };
     InitCommonControlsEx(&icc);

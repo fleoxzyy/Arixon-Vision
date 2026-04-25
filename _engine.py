@@ -434,8 +434,11 @@ class MainWindow(QMainWindow):
                 # Drag mode
                 new_x = scx - self.drag_offset[0]
                 new_y = scy - self.drag_offset[1]
-                new_x = max(0, min(new_x, win_w - bw.width()))
-                new_y = max(0, min(new_y, win_h - bw.height()))
+                # Allow up to half the browser to go off-screen
+                half_w = bw.width() // 2
+                half_h = bw.height() // 2
+                new_x = max(-half_w, min(new_x, win_w - half_w))
+                new_y = max(-half_h, min(new_y, win_h - half_h))
                 curr_x = bw.x()
                 curr_y = bw.y()
                 bw.move(int(curr_x + (new_x - curr_x)*0.3), int(curr_y + (new_y - curr_y)*0.3))
@@ -490,7 +493,7 @@ class MainWindow(QMainWindow):
 
 def main():
     print("=" * 50)
-    print("  Arixon Vision")
+    print("  Arixon Vision | A Vision-Based Computing Platform")
     print("  Starting up...")
     print("=" * 50)
     
