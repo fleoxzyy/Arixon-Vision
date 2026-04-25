@@ -95,7 +95,7 @@ class ArixonLauncher(QMainWindow):
         title.setFont(QFont("Segoe UI", 34, QFont.Weight.Black))
         title.setStyleSheet("color: #00e5ff; letter-spacing: 6px; background: transparent;")
         
-        sub = QLabel("SPATIAL COMPUTING ENGINE")
+        sub = QLabel("MIXED REALITY INTERFACE")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub.setFont(QFont("Segoe UI", 12, QFont.Weight.Medium))
         sub.setStyleSheet("color: rgba(255,255,255,0.4); letter-spacing: 4px; background: transparent; margin-bottom: 5px;")
@@ -181,7 +181,7 @@ class ArixonLauncher(QMainWindow):
         self.btn_launch.setText("■  ENGINE RUNNING")
         self.status_label.setText("●  RUNNING")
         self.status_label.setStyleSheet("color: #00ff88; background: transparent; margin-top: 10px;")
-        self.log_area.append("<br><span style='color: #00ff00;'>[SYSTEM] Booting Arixon Vision core...</span>")
+        self.log_area.append("<br><span style='color: #00ff00;'>[SYSTEM] Launching Arixon Vision core...</span>")
         self.process.start("python", ["_engine.py"])
 
     def handle_stdout(self):
