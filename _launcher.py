@@ -95,7 +95,7 @@ class ArixonLauncher(QMainWindow):
         title.setFont(QFont("Segoe UI", 34, QFont.Weight.Black))
         title.setStyleSheet("color: #00e5ff; letter-spacing: 6px; background: transparent;")
         
-        sub = QLabel("MIXED REALITY INTERFACE")
+        sub = QLabel("PUBLIC BETA")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub.setFont(QFont("Segoe UI", 12, QFont.Weight.Medium))
         sub.setStyleSheet("color: rgba(255,255,255,0.4); letter-spacing: 4px; background: transparent; margin-bottom: 5px;")
