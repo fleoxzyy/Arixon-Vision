@@ -25,9 +25,6 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
    pip install opencv-python mediapipe numpy PyQt6 PyQt6-WebEngine
    ```
 
-3. Ensure the MediaPipe Hand Landmarker model is placed in the `models/` directory:
-   - File expected: `models/hand_landmarker.task`
-
 ## 🚀 Usage
 
 Run the main application script:
