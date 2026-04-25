@@ -27,11 +27,15 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
 
 ## 🚀 Usage
 
-Run the main application script:
+You can launch the application in two ways:
 
-```bash
-python ArixonVision.py
-```
+1. **Using the UI Launcher (Recommended):**
+   Simply double-click the **`Arixon Launcher.exe`** file. This will open a beautiful dark-themed dashboard where you can click "LAUNCH ENGINE" and view system logs and errors in real-time.
+
+2. **Using the Command Line:**
+   ```bash
+   python ArixonVision.py
+   ```
 
 ### Controls:
 - **Press `Q`** on your keyboard to safely exit the application.
