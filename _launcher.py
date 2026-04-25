@@ -100,7 +100,7 @@ class ArixonLauncher(QMainWindow):
         sub.setFont(QFont("Segoe UI", 12, QFont.Weight.Medium))
         sub.setStyleSheet("color: rgba(255,255,255,0.4); letter-spacing: 4px; background: transparent; margin-bottom: 5px;")
 
-        version = QLabel("v1.0.0")
+        version = QLabel("v0.5.3")
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         version.setFont(QFont("Consolas", 10))
         version.setStyleSheet("color: rgba(0,229,255,0.5); background: transparent; margin-bottom: 15px;")
@@ -156,7 +156,7 @@ class ArixonLauncher(QMainWindow):
                 selection-background-color: rgba(0,229,255,0.3);
             }
         """)
-        self.log_area.append("<span style='color: #00e5ff;'>[SYSTEM] Arixon Launcher v1.0.0 Initialized.</span>")
+        self.log_area.append("<span style='color: #00e5ff;'>[SYSTEM] Arixon Launcher v0.5.3 Initialized.</span>")
         self.log_area.append("<span style='color: rgba(255,255,255,0.3);'>Ready. Click LAUNCH ENGINE to start.</span><br>")
         
         # ─── Layout Assembly ───

@@ -490,7 +490,7 @@ class MainWindow(QMainWindow):
 
 def main():
     print("=" * 50)
-    print("  Arixon Vision — PyQt6 Real WebEngine Edition")
+    print("  Arixon Vision")
     print("  Starting up...")
     print("=" * 50)
     
