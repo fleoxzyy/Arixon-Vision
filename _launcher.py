@@ -1,5 +1,6 @@
 import sys
 import math
+import socket
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QWidget, QLabel, QFrame
 from PyQt6.QtCore import QProcess, Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QTextCursor, QPainter, QLinearGradient, QColor, QPen, QFont
@@ -209,7 +210,27 @@ class ArixonLauncher(QMainWindow):
             self.status_label.setStyleSheet("color: #ff5555; background: transparent; margin-top: 10px;")
             self.log_area.append("<br><span style='color: #ffaa00;'>[SYSTEM] Engine stopped.</span>")
 
+# Single-instance lock
+_LOCK_PORT = 47392
+_lock_socket = None
+
+def _acquire_lock():
+    global _lock_socket
+    _lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        _lock_socket.bind(('127.0.0.1', _LOCK_PORT))
+        return True
+    except OSError:
+        return False
+
 if __name__ == '__main__':
+    if not _acquire_lock():
+        app = QApplication(sys.argv)
+        from PyQt6.QtWidgets import QMessageBox
+        QMessageBox.warning(None, "Arixon Vision",
+            "Arixon Launcher is already running!\nOnly one instance can run at a time.")
+        sys.exit(1)
+
     app = QApplication(sys.argv)
     window = ArixonLauncher()
     window.show()
