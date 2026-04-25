@@ -10,7 +10,19 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
   - ✌️ **Peace Sign**: Grab and drag the window around your screen.
   - 👍 **Thumb Up** or 🤏 **Pinch**: Click on links, videos, and buttons.
 - **Glassmorphism UI:** Beautiful, semi-transparent rendering using PyQt and OpenCV.
-- **Highly Optimized:** Utilizes frame-skipping, downscaling, and multi-threading (`QThread`) to maintain stable FPS even on budget CPUs. Uses the modern MediaPipe Tasks API for blazing-fast hand tracking.
+- **Adaptive Resolution:** Automatically detects your system's CPU and RAM to pick the best resolution and frame rate for smooth performance.
+- **Resizable Window:** Supports minimize, maximize, resize, and close — just like any standard desktop app.
+- **Highly Optimized:** Utilizes frame-skipping, downscaling, and multi-threading (`QThread`) to maintain stable FPS even on budget CPUs.
+
+### 📊 Performance Tiers
+
+| Tier | CPU Cores | RAM | Resolution | FPS |
+|------|-----------|-----|------------|-----|
+| 🟢 High | 8+ | 8+ GB | 1280×720 | 30 |
+| 🟡 Medium | 4+ | 4+ GB | 960×720 | 25 |
+| 🔴 Low | < 4 | < 4 GB | 640×480 | 20 |
+
+The engine automatically selects the best tier for your hardware at startup. No configuration needed!
 
 ## 🛠️ Installation
 
@@ -40,14 +52,17 @@ You can launch the application in two ways:
 
 2. **Using the Command Line:**
    ```bash
-   python ArixonVision.py
+   python _engine.py
    ```
 
 ### Controls:
 - **Press `Q`** on your keyboard to safely exit the application.
 
 ## 🧠 Architecture
-- **`ArixonVision.py`**: The main entry point containing the PyQt6 GUI and multi-threading loop.
+- **`Arixon Launcher.exe`**: The compiled C entry point. Checks for Python/packages and launches the UI dashboard.
+- **`_engine.py`**: The main MR engine containing the PyQt6 GUI, adaptive resolution, and multi-threading loop.
+- **`_launcher.py`**: The dark-themed launcher dashboard UI.
+- **`launcher.c`**: Source code for the C bootstrapper.
 - **`core/gesture.py`**: Handles hand landmark detection, state tracking, and drawing the AR neon skeleton.
 - **`core/cursor.py`**: Manages the glowing cursor that follows your index finger.
 - **`core/performance.py`**: Manages FPS tracking and dynamic frame-skipping logic.

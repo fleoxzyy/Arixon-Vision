@@ -14,6 +14,7 @@ Controls:
 import sys
 import cv2
 import time
+import os
 import numpy as np
 
 # PyQt6 imports for GUI and embedded browser
@@ -27,9 +28,62 @@ from core.gesture import GestureEngine, GESTURE_OPEN, GESTURE_FIST, GESTURE_PEAC
 from core.cursor import ARCursor
 from core.hud import HUD
 
-# Default window dimensions
-DEFAULT_WIDTH = 960
-DEFAULT_HEIGHT = 720
+
+def detect_system_tier():
+    """
+    Detect system capabilities and return a resolution tier.
+    Returns: (width, height, target_fps, detect_every_n, tier_name)
+    """
+    import ctypes
+    
+    # Get CPU core count
+    cpu_cores = os.cpu_count() or 2
+    
+    # Get total RAM in GB (Windows-specific, no external packages needed)
+    try:
+        kernel32 = ctypes.windll.kernel32
+        c_ulonglong = ctypes.c_ulonglong
+        
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", c_ulonglong),
+                ("ullAvailPhys", c_ulonglong),
+                ("ullTotalPageFile", c_ulonglong),
+                ("ullAvailPageFile", c_ulonglong),
+                ("ullTotalVirtual", c_ulonglong),
+                ("ullAvailVirtual", c_ulonglong),
+                ("ullAvailExtendedVirtual", c_ulonglong),
+            ]
+        
+        mem_info = MEMORYSTATUSEX()
+        mem_info.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        kernel32.GlobalMemoryStatusEx(ctypes.byref(mem_info))
+        ram_gb = mem_info.ullTotalPhys / (1024 ** 3)
+    except Exception:
+        ram_gb = 4  # Safe fallback
+    
+    # Tier selection
+    # High:   8+ cores, 8+ GB RAM  → 1280x720, 30fps
+    # Medium: 4+ cores, 4+ GB RAM  → 960x720, 25fps
+    # Low:    anything else         → 640x480, 20fps
+    
+    if cpu_cores >= 8 and ram_gb >= 8:
+        tier = (1280, 720, 30, 2, "High")
+    elif cpu_cores >= 4 and ram_gb >= 4:
+        tier = (960, 720, 25, 2, "Medium")
+    else:
+        tier = (640, 480, 20, 3, "Low")
+    
+    print(f"  System: {cpu_cores} CPU cores, {ram_gb:.1f} GB RAM")
+    print(f"  Performance Tier: {tier[4]} ({tier[0]}x{tier[1]} @ {tier[2]}fps)")
+    
+    return tier
+
+
+# Auto-detect best resolution for this PC
+SYS_WIDTH, SYS_HEIGHT, SYS_FPS, SYS_DETECT_N, SYS_TIER = detect_system_tier()
 
 
 class CameraThread(QThread):
@@ -40,10 +94,10 @@ class CameraThread(QThread):
         super().__init__()
         self.running = True
         self.gesture_engine = GestureEngine()
-        self.perf = PerformanceManager(target_fps=25, detect_every_n=2)
-        # Capture at higher res for better quality
-        self.cap_width = 960
-        self.cap_height = 720
+        self.perf = PerformanceManager(target_fps=SYS_FPS, detect_every_n=SYS_DETECT_N)
+        # Capture at auto-detected resolution
+        self.cap_width = SYS_WIDTH
+        self.cap_height = SYS_HEIGHT
         
     def run(self):
         cap = cv2.VideoCapture(0)
@@ -125,7 +179,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Arixon Vision - MR Camera Overlay")
-        self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.resize(SYS_WIDTH, SYS_HEIGHT)
         self.setMinimumSize(640, 480)
         
         # Central widget to hold everything
@@ -134,14 +188,14 @@ class MainWindow(QMainWindow):
         
         # Background Camera Feed
         self.bg_label = QLabel(self.central)
-        self.bg_label.setGeometry(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.bg_label.setGeometry(0, 0, SYS_WIDTH, SYS_HEIGHT)
         self.bg_label.setScaledContents(True)
         
         # Floating Browser Container
         self.browser_widget = QWidget(self.central)
         self.browser_widget.setGeometry(
-            int(DEFAULT_WIDTH * 0.10), int(DEFAULT_HEIGHT * 0.10),
-            int(DEFAULT_WIDTH * 0.75), int(DEFAULT_HEIGHT * 0.75)
+            int(SYS_WIDTH * 0.10), int(SYS_HEIGHT * 0.10),
+            int(SYS_WIDTH * 0.75), int(SYS_HEIGHT * 0.75)
         )
         self.browser_widget.setStyleSheet("""
             QWidget#BrowserContainer {
@@ -196,7 +250,7 @@ class MainWindow(QMainWindow):
         
         # Transparent Overlay Label for Hand/Cursor (ALWAYS ON TOP)
         self.overlay_label = QLabel(self.central)
-        self.overlay_label.setGeometry(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.overlay_label.setGeometry(0, 0, SYS_WIDTH, SYS_HEIGHT)
         self.overlay_label.setScaledContents(True)
         self.overlay_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.overlay_label.setStyleSheet("background: transparent;")
