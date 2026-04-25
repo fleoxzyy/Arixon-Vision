@@ -7,9 +7,8 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
 - **Real Embedded Browser:** Browse YouTube, Google, and Maps inside the AR overlay using `PyQt6-WebEngine`.
 - **Gesture Control:** Interact with the digital world using simple hand gestures:
   - ✋ **Open Hand**: Show / hide the browser overlay.
-  - ✌️ **Peace Sign**: Grab and drag the window around your screen.
-  - 🤏 **Pinch**: Resize the window dynamically.
-  - 👍 **Thumb Up**: Click on links, videos, and buttons.
+  - ✌️ **Peace Sign**: Grab and drag the window (or resize if grabbing the corner).
+  - 🤏 **Pinch**: Click on links, videos, and buttons.
 - **Glassmorphism UI:** Beautiful, semi-transparent rendering using PyQt and OpenCV.
 - **Adaptive Resolution:** Automatically detects your system's CPU and RAM to pick the best resolution and frame rate for smooth performance.
 - **Resizable Window:** Supports minimize, maximize, resize, and close — just like any standard desktop app.

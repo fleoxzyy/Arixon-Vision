@@ -7,7 +7,6 @@ import cv2
 GESTURE_NONE = "none"
 GESTURE_OPEN = "open"
 GESTURE_FIST = "fist"
-GESTURE_THUMB = "thumb"
 GESTURE_PEACE = "peace"
 GESTURE_PINCH = "pinch"
 
@@ -15,17 +14,15 @@ GESTURE_LABELS = {
     GESTURE_NONE: "",
     GESTURE_OPEN: "OPEN HAND",
     GESTURE_FIST: "FIST",
-    GESTURE_THUMB: "THUMB UP",
-    GESTURE_PEACE: "PEACE / DRAG",
+    GESTURE_PEACE: "PEACE SIGN",
     GESTURE_PINCH: "PINCH",
 }
 
 GESTURE_ACTIONS = {
     GESTURE_OPEN: ">>  Show Window",
     GESTURE_FIST: ">>  Hide Window",
-    GESTURE_THUMB: ">>  Click!",
-    GESTURE_PEACE: ">>  Drag Mode",
-    GESTURE_PINCH: ">>  Alt Click!",
+    GESTURE_PEACE: ">>  Drag / Resize",
+    GESTURE_PINCH: ">>  Click!",
 }
 
 
@@ -60,6 +57,14 @@ class HUD:
             action = GESTURE_ACTIONS.get(gesture, "")
             if action:
                 self._text_shadow(frame, action, (12, 105), 0.4, (180, 180, 180))
+
+        # Persistent Hints (Top-Right)
+        hint_color = (200, 200, 200)
+        self._text_shadow(frame, "--- HINTS ---", (fw - 140, 25), 0.4, (0, 229, 255))
+        self._text_shadow(frame, "Open  : Show", (fw - 140, 45), 0.4, hint_color)
+        self._text_shadow(frame, "Fist  : Hide", (fw - 140, 65), 0.4, hint_color)
+        self._text_shadow(frame, "Peace : Drag/Resize", (fw - 140, 85), 0.4, hint_color)
+        self._text_shadow(frame, "Pinch : Click", (fw - 140, 105), 0.4, hint_color)
 
         # Branding (bottom-right)
         self._text_shadow(frame, "Arixon Vision", (fw - 165, fh - 14), 0.45, (140, 140, 140))

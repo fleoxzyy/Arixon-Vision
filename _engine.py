@@ -6,9 +6,8 @@ Uses webcam feed with gesture-controlled real embedded web browser.
 Controls:
     Open Hand  — Show browser window
     Fist       — Hide browser window
-    Peace Sign — Drag browser window
-    Pinch      — Resize browser window
-    Thumb Up   — Click action
+    Peace Sign — Drag or Resize browser window (if near corner)
+    Pinch      — Click action
 """
 
 import sys
@@ -24,7 +23,7 @@ from PyQt6.QtCore import QThread, pyqtSignal, Qt, QPoint, QUrl, QPointF
 from PyQt6.QtGui import QImage, QPixmap, QMouseEvent
 
 from core.performance import PerformanceManager
-from core.gesture import GestureEngine, GESTURE_OPEN, GESTURE_FIST, GESTURE_PEACE, GESTURE_THUMB, GESTURE_PINCH
+from core.gesture import GestureEngine, GESTURE_OPEN, GESTURE_FIST, GESTURE_PEACE, GESTURE_PINCH
 from core.cursor import ARCursor
 from core.hud import HUD
 
@@ -375,50 +374,57 @@ class MainWindow(QMainWindow):
             if self.browser_widget.isVisible():
                 self.browser_widget.hide()
                 
-        # 2. Handle dragging (Peace Sign)
+        # 2. Handle dragging OR resizing (Peace Sign)
         if g == GESTURE_PEACE and found and self.browser_widget.isVisible():
             bw = self.browser_widget
-            if not self.was_dragging:
-                self.drag_offset = (scx - bw.x(), scy - bw.y())
-                self.was_dragging = True
+            br = bw.geometry()
             
-            # Drag mode
-            new_x = scx - self.drag_offset[0]
-            new_y = scy - self.drag_offset[1]
-            new_x = max(0, min(new_x, win_w - bw.width()))
-            new_y = max(0, min(new_y, win_h - bw.height()))
-            curr_x = bw.x()
-            curr_y = bw.y()
-            bw.move(int(curr_x + (new_x - curr_x)*0.3), int(curr_y + (new_y - curr_y)*0.3))
+            # Check if hand is near bottom-right corner (resize zone)
+            corner_x = br.x() + br.width()
+            corner_y = br.y() + br.height()
+            near_corner = (abs(scx - corner_x) < self.RESIZE_CORNER_SIZE and 
+                          abs(scy - corner_y) < self.RESIZE_CORNER_SIZE)
+            
+            if not self.was_dragging and not self.was_resizing:
+                # Decide: resize or drag?
+                if near_corner:
+                    self.was_resizing = True
+                    self.resize_start = (scx, scy)
+                    self.resize_start_size = (br.width(), br.height())
+                else:
+                    self.was_dragging = True
+                    self.drag_offset = (scx - br.x(), scy - br.y())
+            
+            if self.was_resizing:
+                # Resize mode
+                dx = scx - self.resize_start[0]
+                dy = scy - self.resize_start[1]
+                new_w = max(200, self.resize_start_size[0] + dx)
+                new_h = max(150, self.resize_start_size[1] + dy)
+                new_w = min(new_w, win_w - br.x())
+                new_h = min(new_h, win_h - br.y())
+                
+                # Smooth resize
+                curr_w = bw.width()
+                curr_h = bw.height()
+                bw.resize(int(curr_w + (new_w - curr_w)*0.3), int(curr_h + (new_h - curr_h)*0.3))
+                
+            elif self.was_dragging:
+                # Drag mode
+                new_x = scx - self.drag_offset[0]
+                new_y = scy - self.drag_offset[1]
+                new_x = max(0, min(new_x, win_w - bw.width()))
+                new_y = max(0, min(new_y, win_h - bw.height()))
+                curr_x = bw.x()
+                curr_y = bw.y()
+                bw.move(int(curr_x + (new_x - curr_x)*0.3), int(curr_y + (new_y - curr_y)*0.3))
         else:
             self.was_dragging = False
-
-        # 3. Handle Resizing (Pinch)
-        if g == GESTURE_PINCH and found and self.browser_widget.isVisible():
-            bw = self.browser_widget
-            if not self.was_resizing:
-                self.was_resizing = True
-                self.resize_start = (scx, scy)
-                self.resize_start_size = (bw.width(), bw.height())
-            
-            # Resize mode
-            dx = scx - self.resize_start[0]
-            dy = scy - self.resize_start[1]
-            new_w = max(200, self.resize_start_size[0] + dx)
-            new_h = max(150, self.resize_start_size[1] + dy)
-            new_w = min(new_w, win_w - bw.x())
-            new_h = min(new_h, win_h - bw.y())
-            
-            # Smooth resize
-            curr_w = bw.width()
-            curr_h = bw.height()
-            bw.resize(int(curr_w + (new_w - curr_w)*0.3), int(curr_h + (new_h - curr_h)*0.3))
-        else:
             self.was_resizing = False
 
-        # 4. Handle clicking (Thumb Up only)
+        # 3. Handle clicking (Pinch only)
         now = time.time()
-        if g == GESTURE_THUMB and self.prev_gesture != g:
+        if g == GESTURE_PINCH and self.prev_gesture != g:
             if now - self.last_click_time > 0.5: # 0.5s cooldown
                 self.simulate_click(ix, iy)
                 self.last_click_time = now
@@ -429,7 +435,7 @@ class MainWindow(QMainWindow):
         if found and self.browser_widget.isVisible():
             if self.browser_widget.geometry().contains(six, siy):
                 cursor_state = ARCursor.STATE_HOVER
-        if g == GESTURE_THUMB:
+        if g == GESTURE_PINCH:
             cursor_state = ARCursor.STATE_CLICK
             
         self.cursor.update((ix, iy), cursor_state, found)

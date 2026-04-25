@@ -7,9 +7,8 @@ from core.hand_tracker import HandTracker
 GESTURE_NONE = "none"
 GESTURE_OPEN = "open"       # ✋ Show browser
 GESTURE_FIST = "fist"       # ✊ Hide browser
-GESTURE_THUMB = "thumb"     # 👍 Click
-GESTURE_PEACE = "peace"     # ✌️ Drag
-GESTURE_PINCH = "pinch"     # 🤏 Alt-click
+GESTURE_PEACE = "peace"     # ✌️ Drag / Resize
+GESTURE_PINCH = "pinch"     # 🤏 Click
 
 
 class GestureEngine:
@@ -66,8 +65,6 @@ class GestureEngine:
             raw = GESTURE_OPEN
         elif sum(fingers) == 0:
             raw = GESTURE_FIST
-        elif fingers[0] == 1 and sum(fingers[1:]) == 0:
-            raw = GESTURE_THUMB
         elif fingers[1] == 1 and fingers[2] == 1 and sum(fingers) <= 3:
             raw = GESTURE_PEACE
         else:
