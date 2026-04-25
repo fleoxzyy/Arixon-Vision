@@ -14,16 +14,22 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
 
 ## 🛠️ Installation
 
+**Zero-Setup Method (Recommended):**
+1. Clone this repository or download the ZIP.
+2. Double-click **`Arixon Launcher.exe`**.
+3. *That's it!* The smart launcher will automatically detect if you have Python installed (and prompt you to download it if not). It will then automatically download all required pip packages and AI models in the background before launching the dashboard.
+
+**Manual Method (For Developers):**
 1. Clone this repository:
    ```bash
    git clone https://github.com/fleoxzyy/Arixon-Vision.git
    cd Arixon-Vision
    ```
-
 2. Install the required dependencies:
    ```bash
    pip install opencv-python mediapipe numpy PyQt6 PyQt6-WebEngine
    ```
+*(Note: The AI Hand Landmarker model will automatically download itself the first time you run the script!)*
 
 ## 🚀 Usage
 
