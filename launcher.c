@@ -15,7 +15,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         );
         
         if (msgboxID == IDOK) {
-            ShellExecute(NULL, "open", "https://www.python.org/downloads/", NULL, NULL, SW_SHOWNORMAL);
+            ShellExecute(NULL, "open", "https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe", NULL, NULL, SW_SHOWNORMAL);
         }
         return 1;
     }
