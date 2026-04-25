@@ -44,7 +44,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
     
     // 3. Launch the Arixon Vision UI Launcher
-    ShellExecute(NULL, "open", "pythonw", "ArixonLauncher.py", NULL, SW_SHOW);
+    ShellExecute(NULL, "open", "pythonw", "_launcher.py", NULL, SW_SHOW);
     
     return 0;
 }

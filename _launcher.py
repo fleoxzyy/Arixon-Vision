@@ -80,7 +80,7 @@ class ArixonLauncher(QMainWindow):
         self.btn_launch.setText("ENGINE RUNNING...")
         self.log_area.append("<br><span style='color: #00ff00;'>[SYSTEM] Booting Arixon Vision core...</span>")
         # Start python script
-        self.process.start("python", ["ArixonVision.py"])
+        self.process.start("python", ["_engine.py"])
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput().data().decode('utf-8', errors='replace')
