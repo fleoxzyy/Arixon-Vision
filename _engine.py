@@ -1,15 +1,3 @@
-"""
-Arixon Vision — PyQt6 Edition
-A spatial computing simulator optimized for low-end devices.
-Uses webcam feed with gesture-controlled real embedded web browser.
-
-Controls:
-    Open Hand  — Show browser window
-    Fist       — Hide browser window
-    Peace Sign — Drag or Resize browser window (if near corner)
-    Pinch      — Click action
-"""
-
 import sys
 import cv2
 import time
