@@ -2,6 +2,7 @@ import sys
 import cv2
 import time
 import os
+import socket
 import numpy as np
 
 # PyQt6 imports for GUI and embedded browser
@@ -490,8 +491,30 @@ class MainWindow(QMainWindow):
         qimg_overlay = QImage(overlay_frame.data, w, h, w * 4, QImage.Format.Format_RGBA8888)
         self.overlay_label.setPixmap(QPixmap.fromImage(qimg_overlay))
 
+# Single-instance lock port
+_LOCK_PORT = 47391
+_lock_socket = None
+
+def _acquire_lock():
+    """Prevent multiple instances by binding a unique localhost port."""
+    global _lock_socket
+    _lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        _lock_socket.bind(('127.0.0.1', _LOCK_PORT))
+        return True
+    except OSError:
+        return False
+
 
 def main():
+    if not _acquire_lock():
+        print("[ERROR] Arixon Vision is already running!")
+        from PyQt6.QtWidgets import QApplication, QMessageBox
+        temp_app = QApplication(sys.argv)
+        QMessageBox.warning(None, "Arixon Vision",
+            "Arixon Vision is already running!\nOnly one instance can run at a time.")
+        sys.exit(1)
+
     print("=" * 50)
     print("  Arixon Vision | A Vision-Based Computing Platform")
     print("  Starting up...")
