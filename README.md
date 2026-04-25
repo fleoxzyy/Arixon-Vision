@@ -18,9 +18,9 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
 
 | Tier | CPU Cores | RAM | Resolution | FPS |
 |------|-----------|-----|------------|-----|
-| 🟢 High | 8+ | 8+ GB | 1280×720 | 30 |
-| 🟡 Medium | 4+ | 4+ GB | 960×720 | 25 |
-| 🔴 Low | < 4 | < 4 GB | 640×480 | 20 |
+| 🟢 High | 8+ | 8+ GB | 1280×720 | 60+ |
+| 🟡 Medium | 4+ | 4+ GB | 960×720 | 40+ |
+| 🔴 Low | < 4 | < 4 GB | 640×480 | 25+ |
 
 The engine automatically selects the best tier for your hardware at startup. No configuration needed!
 
@@ -67,6 +67,3 @@ You can launch the application in two ways:
 - **`core/cursor.py`**: Manages the glowing cursor that follows your index finger.
 - **`core/performance.py`**: Manages FPS tracking and dynamic frame-skipping logic.
 - **`core/hud.py`**: Renders the Heads-Up Display (FPS counter and active gesture).
-
-## License
-MIT License
