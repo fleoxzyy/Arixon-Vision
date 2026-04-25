@@ -182,7 +182,7 @@ class ArixonLauncher(QMainWindow):
         self.status_label.setText("●  RUNNING")
         self.status_label.setStyleSheet("color: #00ff88; background: transparent; margin-top: 10px;")
         self.log_area.append("<br><span style='color: #00ff00;'>[SYSTEM] Launching Arixon Vision core...</span>")
-        self.process.start("python", ["_engine.py"])
+        self.process.start("python", ["-m", "_engine"])
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput().data().decode('utf-8', errors='replace')

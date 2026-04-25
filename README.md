@@ -52,7 +52,7 @@ You can launch the application in two ways:
 
 2. **Using the Command Line:**
    ```bash
-   python _engine.py
+   python -m _engine
    ```
 
 ### Controls:
@@ -60,7 +60,7 @@ You can launch the application in two ways:
 
 ## 🧠 Architecture
 - **`Arixon Launcher.exe`**: The compiled C entry point. Checks for Python/packages and launches the UI dashboard.
-- **`_engine.py`**: The main MR engine containing the PyQt6 GUI, adaptive resolution, and multi-threading loop.
+- **`_engine/`**: The main MR engine module containing the PyQt6 GUI, adaptive resolution, and multi-threading loop.
 - **`_launcher.py`**: The dark-themed launcher dashboard UI.
 - **`launcher.c`**: Source code for the C bootstrapper.
 - **`core/gesture.py`**: Handles hand landmark detection, state tracking, and drawing the AR neon skeleton.
