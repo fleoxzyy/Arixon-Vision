@@ -1,0 +1,3 @@
+@echo off
+echo Starting...
+python ArixonVision.py

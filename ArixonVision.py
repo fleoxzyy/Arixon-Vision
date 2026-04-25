@@ -1,0 +1,345 @@
+"""
+Arixon Vision — PyQt6 Edition
+A spatial computing simulator optimized for low-end devices.
+Uses webcam feed with gesture-controlled real embedded web browser.
+
+Controls:
+    Open Hand  — Show browser window
+    Fist       — Hide browser window
+    Peace Sign — Drag browser window
+    Thumb Up   — Click action
+    Pinch      — Alt click
+"""
+
+import sys
+import cv2
+import time
+import numpy as np
+
+# PyQt6 imports for GUI and embedded browser
+from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QGraphicsOpacityEffect
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QPoint, QUrl, QPointF
+from PyQt6.QtGui import QImage, QPixmap, QMouseEvent
+
+from core.performance import PerformanceManager
+from core.gesture import GestureEngine, GESTURE_OPEN, GESTURE_FIST, GESTURE_PEACE, GESTURE_THUMB, GESTURE_PINCH
+from core.cursor import ARCursor
+from core.hud import HUD
+
+
+class CameraThread(QThread):
+    """Runs the OpenCV camera loop and hand tracking in the background to keep the GUI responsive."""
+    frame_ready = pyqtSignal(np.ndarray, np.ndarray, dict)
+    
+    def __init__(self):
+        super().__init__()
+        self.running = True
+        self.gesture_engine = GestureEngine()
+        self.perf = PerformanceManager(target_fps=25, detect_every_n=2)
+        
+    def run(self):
+        cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        
+        while self.running:
+            self.perf.frame_start()
+            success, frame = cap.read()
+            if not success or frame is None:
+                continue
+                
+            frame = cv2.flip(frame, 1)
+            fh, fw = frame.shape[:2]
+            
+            found = False
+            if self.perf.should_detect():
+                # Downscale for performance
+                small = cv2.resize(frame, (320, 240))
+                found = self.gesture_engine.detect(small)
+                
+                # Scale landmarks back up
+                if found and self.gesture_engine.landmarks is not None:
+                    sx = fw / 320.0
+                    sy = fh / 240.0
+                    tracker = self.gesture_engine.tracker
+                    tracker.landmarks = [[lm[0]*sx, lm[1]*sy, lm[2]*sx] for lm in tracker.landmarks]
+                    tracker.index_tip = (int(tracker.index_tip[0]*sx), int(tracker.index_tip[1]*sy))
+                    tracker.thumb_tip = (int(tracker.thumb_tip[0]*sx), int(tracker.thumb_tip[1]*sy))
+                    tracker.hand_center = (int(tracker.hand_center[0]*sx), int(tracker.hand_center[1]*sy))
+                    dx = tracker.landmarks[8][0] - tracker.landmarks[4][0]
+                    dy = tracker.landmarks[8][1] - tracker.landmarks[4][1]
+                    tracker.pinch_dist = (dx*dx + dy*dy)**0.5
+            else:
+                found = self.gesture_engine.tracker.detected
+            
+            # Create a separate BGR canvas for hand drawing
+            hand_canvas = np.zeros((fh, fw, 3), dtype=np.uint8)
+            self.gesture_engine.draw_hand(hand_canvas)
+            
+            # Convert hand canvas to a transparent RGBA overlay
+            gray = cv2.cvtColor(hand_canvas, cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+            b, g, r = cv2.split(hand_canvas)
+            overlay_frame = cv2.merge((b, g, r, alpha))
+
+            self.perf.update_fps()
+            
+            state = {
+                'gesture': self.gesture_engine.gesture,
+                'hand_found': found,
+                'hand_center': self.gesture_engine.tracker.hand_center,
+                'index_tip': self.gesture_engine.tracker.index_tip,
+                'fps': self.perf.fps
+            }
+            
+            self.frame_ready.emit(frame, overlay_frame, state)
+            self.perf.wait()
+            
+        cap.release()
+        self.gesture_engine.close()
+
+    def stop(self):
+        self.running = False
+        self.wait()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Arixon Vision - MR Camera Overlay")
+        self.setFixedSize(640, 480)
+        
+        # Background Camera Feed
+        self.bg_label = QLabel(self)
+        self.bg_label.setGeometry(0, 0, 640, 480)
+        
+        # Floating Browser Container
+        self.browser_widget = QWidget(self)
+        self.browser_widget.setGeometry(100, 80, 460, 340)
+        self.browser_widget.setStyleSheet("""
+            QWidget#BrowserContainer {
+                background-color: rgba(30, 30, 35, 220);
+                border-radius: 12px;
+                border: 2px solid #555;
+            }
+            QPushButton {
+                background-color: #444;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QPushButton:hover { background-color: #666; }
+        """)
+        self.browser_widget.setObjectName("BrowserContainer")
+        
+        layout = QVBoxLayout(self.browser_widget)
+        layout.setContentsMargins(6, 6, 6, 6)
+        
+        # Top App Toolbar
+        self.toolbar = QWidget()
+        self.toolbar.setFixedHeight(30)
+        t_layout = QHBoxLayout(self.toolbar)
+        t_layout.setContentsMargins(0, 0, 0, 0)
+        
+        btn_yt = QPushButton("YouTube")
+        btn_yt.clicked.connect(lambda: self.web_view.setUrl(QUrl("https://www.youtube.com")))
+        btn_chrome = QPushButton("Google")
+        btn_chrome.clicked.connect(lambda: self.web_view.setUrl(QUrl("https://www.google.com")))
+        btn_maps = QPushButton("Maps")
+        btn_maps.clicked.connect(lambda: self.web_view.setUrl(QUrl("https://maps.google.com")))
+        
+        t_layout.addWidget(btn_yt)
+        t_layout.addWidget(btn_chrome)
+        t_layout.addWidget(btn_maps)
+        t_layout.addStretch()
+        
+        # The REAL Web Browser Engine
+        self.web_view = QWebEngineView()
+        self.web_view.setUrl(QUrl("https://www.youtube.com"))
+        
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.web_view)
+        
+        # Semi-transparent Glass effect
+        self.opacity_effect = QGraphicsOpacityEffect()
+        self.opacity_effect.setOpacity(0.90)
+        self.browser_widget.setGraphicsEffect(self.opacity_effect)
+        self.browser_widget.hide()  # hidden by default
+        
+        # Transparent Overlay Label for Hand/Cursor (ALWAYS ON TOP)
+        self.overlay_label = QLabel(self)
+        self.overlay_label.setGeometry(0, 0, 640, 480)
+        self.overlay_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.overlay_label.setStyleSheet("background: transparent;")
+        self.overlay_label.raise_()
+        
+        # Overlay states
+        self.cursor = ARCursor()
+        self.hud = HUD()
+        
+        self.was_dragging = False
+        self.drag_offset = (0, 0)
+        self.prev_gesture = "none"
+        self.last_click_time = 0
+        
+        # Start Camera Loop
+        self.thread = CameraThread()
+        self.thread.frame_ready.connect(self.update_frame)
+        self.thread.start()
+
+    def closeEvent(self, event):
+        self.thread.stop()
+        event.accept()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Q:
+            self.close()
+
+    def simulate_click(self, x, y):
+        """Simulate a mouse click inside the QWebEngineView using Qt Events."""
+        local_pos = self.browser_widget.mapFromParent(QPoint(x, y))
+        # Ensure click is actually inside the web view (not just the toolbar)
+        if self.web_view.geometry().contains(local_pos):
+            web_pos = self.web_view.mapFromParent(local_pos)
+            target = self.web_view.focusProxy() or self.web_view
+            
+            p_pos = QPointF(float(web_pos.x()), float(web_pos.y()))
+            press = QMouseEvent(
+                QMouseEvent.Type.MouseButtonPress,
+                p_pos, p_pos,
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier
+            )
+            release = QMouseEvent(
+                QMouseEvent.Type.MouseButtonRelease,
+                p_pos, p_pos,
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.NoButton,
+                Qt.KeyboardModifier.NoModifier
+            )
+            
+            QApplication.sendEvent(target, press)
+            QApplication.sendEvent(target, release)
+            print("  >> Simulated Click on Web View")
+            
+        elif self.toolbar.geometry().contains(local_pos):
+            # Click on toolbar buttons
+            tool_pos = self.toolbar.mapFromParent(local_pos)
+            child = self.toolbar.childAt(tool_pos)
+            if child:
+                p_pos = QPointF(float(tool_pos.x()), float(tool_pos.y()))
+                press = QMouseEvent(
+                    QMouseEvent.Type.MouseButtonPress, p_pos, p_pos,
+                    Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier
+                )
+                release = QMouseEvent(
+                    QMouseEvent.Type.MouseButtonRelease, p_pos, p_pos,
+                    Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier
+                )
+                QApplication.sendEvent(child, press)
+                QApplication.sendEvent(child, release)
+                print(f"  >> Simulated Click on App Toolbar")
+
+    def update_frame(self, frame, overlay_frame, state):
+        g = state['gesture']
+        found = state['hand_found']
+        cx, cy = state['hand_center']
+        ix, iy = state['index_tip']
+        fps = state['fps']
+        
+        # 1. Handle browser visibility
+        if g == GESTURE_OPEN:
+            if not self.browser_widget.isVisible():
+                self.browser_widget.show()
+                self.overlay_label.raise_() # ensure overlay stays on top
+        elif g == GESTURE_FIST:
+            if self.browser_widget.isVisible():
+                self.browser_widget.hide()
+                
+        # 2. Handle dragging
+        if g == GESTURE_PEACE and found and self.browser_widget.isVisible():
+            if not self.was_dragging:
+                bx = self.browser_widget.x()
+                by = self.browser_widget.y()
+                self.drag_offset = (cx - bx, cy - by)
+                self.was_dragging = True
+                
+            new_x = cx - self.drag_offset[0]
+            new_y = cy - self.drag_offset[1]
+            
+            # clamp to screen
+            new_x = max(0, min(new_x, 640 - self.browser_widget.width()))
+            new_y = max(0, min(new_y, 480 - self.browser_widget.height()))
+            
+            # smooth move
+            curr_x = self.browser_widget.x()
+            curr_y = self.browser_widget.y()
+            self.browser_widget.move(int(curr_x + (new_x - curr_x)*0.3), int(curr_y + (new_y - curr_y)*0.3))
+        else:
+            self.was_dragging = False
+
+        # 3. Handle clicking
+        now = time.time()
+        if g in (GESTURE_THUMB, GESTURE_PINCH) and self.prev_gesture != g:
+            if now - self.last_click_time > 0.5: # 0.5s cooldown
+                self.simulate_click(ix, iy)
+                self.last_click_time = now
+        self.prev_gesture = g
+        
+        # 4. Update Cursor State
+        cursor_state = ARCursor.STATE_IDLE
+        if found and self.browser_widget.isVisible():
+            if self.browser_widget.geometry().contains(ix, iy):
+                cursor_state = ARCursor.STATE_HOVER
+        if g in (GESTURE_THUMB, GESTURE_PINCH):
+            cursor_state = ARCursor.STATE_CLICK
+            
+        self.cursor.update((ix, iy), cursor_state, found)
+        
+        # We need to draw the cursor onto the overlay frame.
+        # Since ARCursor uses BGR tuples, we can draw on a temp BGR frame, then apply it to the RGBA overlay.
+        # But wait, OpenCV cv2.circle supports 4 channels if we supply a 4-tuple color.
+        # To avoid modifying core/cursor.py, we draw on a temp BGR frame, then alpha-blend it onto the overlay.
+        temp_cursor_bgr = np.zeros((480, 640, 3), dtype=np.uint8)
+        self.cursor.draw(temp_cursor_bgr)
+        gray_cursor = cv2.cvtColor(temp_cursor_bgr, cv2.COLOR_BGR2GRAY)
+        _, alpha_cursor = cv2.threshold(gray_cursor, 1, 255, cv2.THRESH_BINARY)
+        b, g_ch, r = cv2.split(temp_cursor_bgr)
+        cursor_rgba = cv2.merge((b, g_ch, r, alpha_cursor))
+        
+        # Combine the hand overlay and cursor overlay
+        mask = alpha_cursor > 0
+        overlay_frame[mask] = cursor_rgba[mask]
+        
+        # 5. Update HUD (HUD is drawn on the background frame)
+        self.hud.draw(frame, fps, g, found)
+        
+        # 6. Convert OpenCV frame to QPixmap and set background
+        h, w, ch = frame.shape
+        bytes_per_line = ch * w
+        qimg = QImage(frame.data, w, h, bytes_per_line, QImage.Format.Format_BGR888)
+        self.bg_label.setPixmap(QPixmap.fromImage(qimg))
+        
+        # 7. Convert Overlay frame to QPixmap and set overlay label
+        qimg_overlay = QImage(overlay_frame.data, w, h, w * 4, QImage.Format.Format_RGBA8888)
+        self.overlay_label.setPixmap(QPixmap.fromImage(qimg_overlay))
+
+
+def main():
+    print("=" * 50)
+    print("  Arixon Vision — PyQt6 Real WebEngine Edition")
+    print("  Starting up...")
+    print("=" * 50)
+    
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
