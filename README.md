@@ -17,7 +17,7 @@ A lightweight, spatial computing camera overlay built with Python. Designed to r
 **Zero-Setup Method (Recommended):**
 1. Clone this repository or download the ZIP.
 2. Double-click **`Arixon Launcher.exe`**.
-3. *That's it!* The smart launcher will automatically detect if you have Python installed (and prompt you to download it if not). It will then automatically download all required pip packages and AI models in the background before launching the dashboard.
+3. *That's it!* The launcher will automatically detect if you have Python installed (and prompt you to download it if not). It will then automatically download all required pip packages and AI models in the background before launching the dashboard.
 
 **Manual Method (For Developers):**
 1. Clone this repository:
