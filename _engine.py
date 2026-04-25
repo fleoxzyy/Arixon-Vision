@@ -261,9 +261,13 @@ class MainWindow(QMainWindow):
         self.hud = HUD()
         
         self.was_dragging = False
+        self.was_resizing = False
         self.drag_offset = (0, 0)
+        self.resize_start = (0, 0)
+        self.resize_start_size = (0, 0)
         self.prev_gesture = "none"
         self.last_click_time = 0
+        self.RESIZE_CORNER_SIZE = 60  # px from corner to trigger resize
         
         # Start Camera Loop
         self.thread = CameraThread()
@@ -371,27 +375,53 @@ class MainWindow(QMainWindow):
             if self.browser_widget.isVisible():
                 self.browser_widget.hide()
                 
-        # 2. Handle dragging
+        # 2. Handle dragging OR resizing
         if g == GESTURE_PEACE and found and self.browser_widget.isVisible():
-            if not self.was_dragging:
-                bx = self.browser_widget.x()
-                by = self.browser_widget.y()
-                self.drag_offset = (scx - bx, scy - by)
-                self.was_dragging = True
+            bw = self.browser_widget
+            br = bw.geometry()
+            
+            # Check if hand is near bottom-right corner (resize zone)
+            corner_x = br.x() + br.width()
+            corner_y = br.y() + br.height()
+            near_corner = (abs(scx - corner_x) < self.RESIZE_CORNER_SIZE and 
+                          abs(scy - corner_y) < self.RESIZE_CORNER_SIZE)
+            
+            if not self.was_dragging and not self.was_resizing:
+                # Decide: resize or drag?
+                if near_corner:
+                    self.was_resizing = True
+                    self.resize_start = (scx, scy)
+                    self.resize_start_size = (br.width(), br.height())
+                else:
+                    self.was_dragging = True
+                    self.drag_offset = (scx - br.x(), scy - br.y())
+            
+            if self.was_resizing:
+                # Resize mode
+                dx = scx - self.resize_start[0]
+                dy = scy - self.resize_start[1]
+                new_w = max(200, self.resize_start_size[0] + dx)
+                new_h = max(150, self.resize_start_size[1] + dy)
+                new_w = min(new_w, win_w - br.x())
+                new_h = min(new_h, win_h - br.y())
                 
-            new_x = scx - self.drag_offset[0]
-            new_y = scy - self.drag_offset[1]
-            
-            # clamp to window
-            new_x = max(0, min(new_x, win_w - self.browser_widget.width()))
-            new_y = max(0, min(new_y, win_h - self.browser_widget.height()))
-            
-            # smooth move
-            curr_x = self.browser_widget.x()
-            curr_y = self.browser_widget.y()
-            self.browser_widget.move(int(curr_x + (new_x - curr_x)*0.3), int(curr_y + (new_y - curr_y)*0.3))
+                # Smooth resize
+                curr_w = bw.width()
+                curr_h = bw.height()
+                bw.resize(int(curr_w + (new_w - curr_w)*0.3), int(curr_h + (new_h - curr_h)*0.3))
+                
+            elif self.was_dragging:
+                # Drag mode
+                new_x = scx - self.drag_offset[0]
+                new_y = scy - self.drag_offset[1]
+                new_x = max(0, min(new_x, win_w - bw.width()))
+                new_y = max(0, min(new_y, win_h - bw.height()))
+                curr_x = bw.x()
+                curr_y = bw.y()
+                bw.move(int(curr_x + (new_x - curr_x)*0.3), int(curr_y + (new_y - curr_y)*0.3))
         else:
             self.was_dragging = False
+            self.was_resizing = False
 
         # 3. Handle clicking
         now = time.time()
