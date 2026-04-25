@@ -27,6 +27,10 @@ from core.gesture import GestureEngine, GESTURE_OPEN, GESTURE_FIST, GESTURE_PEAC
 from core.cursor import ARCursor
 from core.hud import HUD
 
+# Default window dimensions
+DEFAULT_WIDTH = 960
+DEFAULT_HEIGHT = 720
+
 
 class CameraThread(QThread):
     """Runs the OpenCV camera loop and hand tracking in the background to keep the GUI responsive."""
@@ -37,12 +41,19 @@ class CameraThread(QThread):
         self.running = True
         self.gesture_engine = GestureEngine()
         self.perf = PerformanceManager(target_fps=25, detect_every_n=2)
+        # Capture at higher res for better quality
+        self.cap_width = 960
+        self.cap_height = 720
         
     def run(self):
         cap = cv2.VideoCapture(0)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cap_width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cap_height)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        
+        # Read actual resolution the camera gave us
+        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
         while self.running:
             self.perf.frame_start()
@@ -51,15 +62,20 @@ class CameraThread(QThread):
                 continue
                 
             frame = cv2.flip(frame, 1)
+            
+            # Resize to target dimensions if camera gave different resolution
+            if frame.shape[1] != self.cap_width or frame.shape[0] != self.cap_height:
+                frame = cv2.resize(frame, (self.cap_width, self.cap_height))
+            
             fh, fw = frame.shape[:2]
             
             found = False
             if self.perf.should_detect():
-                # Downscale for performance
+                # Downscale for performance (still process at 320x240 for speed)
                 small = cv2.resize(frame, (320, 240))
                 found = self.gesture_engine.detect(small)
                 
-                # Scale landmarks back up
+                # Scale landmarks back up to full resolution
                 if found and self.gesture_engine.landmarks is not None:
                     sx = fw / 320.0
                     sy = fh / 240.0
@@ -109,15 +125,24 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Arixon Vision - MR Camera Overlay")
-        self.setFixedSize(640, 480)
+        self.resize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.setMinimumSize(640, 480)
+        
+        # Central widget to hold everything
+        self.central = QWidget(self)
+        self.setCentralWidget(self.central)
         
         # Background Camera Feed
-        self.bg_label = QLabel(self)
-        self.bg_label.setGeometry(0, 0, 640, 480)
+        self.bg_label = QLabel(self.central)
+        self.bg_label.setGeometry(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.bg_label.setScaledContents(True)
         
         # Floating Browser Container
-        self.browser_widget = QWidget(self)
-        self.browser_widget.setGeometry(100, 80, 460, 340)
+        self.browser_widget = QWidget(self.central)
+        self.browser_widget.setGeometry(
+            int(DEFAULT_WIDTH * 0.10), int(DEFAULT_HEIGHT * 0.10),
+            int(DEFAULT_WIDTH * 0.75), int(DEFAULT_HEIGHT * 0.75)
+        )
         self.browser_widget.setStyleSheet("""
             QWidget#BrowserContainer {
                 background-color: rgba(30, 30, 35, 220);
@@ -170,8 +195,9 @@ class MainWindow(QMainWindow):
         self.browser_widget.hide()  # hidden by default
         
         # Transparent Overlay Label for Hand/Cursor (ALWAYS ON TOP)
-        self.overlay_label = QLabel(self)
-        self.overlay_label.setGeometry(0, 0, 640, 480)
+        self.overlay_label = QLabel(self.central)
+        self.overlay_label.setGeometry(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        self.overlay_label.setScaledContents(True)
         self.overlay_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.overlay_label.setStyleSheet("background: transparent;")
         self.overlay_label.raise_()
@@ -190,6 +216,17 @@ class MainWindow(QMainWindow):
         self.thread.frame_ready.connect(self.update_frame)
         self.thread.start()
 
+    def resizeEvent(self, event):
+        """Dynamically resize all layers when the window is resized."""
+        super().resizeEvent(event)
+        w = self.central.width()
+        h = self.central.height()
+        
+        # Resize background and overlay to fill the window
+        self.bg_label.setGeometry(0, 0, w, h)
+        self.overlay_label.setGeometry(0, 0, w, h)
+        self.overlay_label.raise_()
+
     def closeEvent(self, event):
         self.thread.stop()
         event.accept()
@@ -200,7 +237,15 @@ class MainWindow(QMainWindow):
 
     def simulate_click(self, x, y):
         """Simulate a mouse click inside the QWebEngineView using Qt Events."""
-        local_pos = self.browser_widget.mapFromParent(QPoint(x, y))
+        # Scale coordinates from camera space to window space
+        w = self.central.width()
+        h = self.central.height()
+        sx = w / self.thread.cap_width
+        sy = h / self.thread.cap_height
+        screen_x = int(x * sx)
+        screen_y = int(y * sy)
+        
+        local_pos = self.browser_widget.mapFromParent(QPoint(screen_x, screen_y))
         # Ensure click is actually inside the web view (not just the toolbar)
         if self.web_view.geometry().contains(local_pos):
             web_pos = self.web_view.mapFromParent(local_pos)
@@ -251,6 +296,18 @@ class MainWindow(QMainWindow):
         ix, iy = state['index_tip']
         fps = state['fps']
         
+        # Get current window dimensions for coordinate scaling
+        win_w = self.central.width()
+        win_h = self.central.height()
+        cam_w = self.thread.cap_width
+        cam_h = self.thread.cap_height
+        sx = win_w / cam_w
+        sy = win_h / cam_h
+        
+        # Scale hand coordinates from camera space to window space
+        scx, scy = int(cx * sx), int(cy * sy)
+        six, siy = int(ix * sx), int(iy * sy)
+        
         # 1. Handle browser visibility
         if g == GESTURE_OPEN:
             if not self.browser_widget.isVisible():
@@ -265,15 +322,15 @@ class MainWindow(QMainWindow):
             if not self.was_dragging:
                 bx = self.browser_widget.x()
                 by = self.browser_widget.y()
-                self.drag_offset = (cx - bx, cy - by)
+                self.drag_offset = (scx - bx, scy - by)
                 self.was_dragging = True
                 
-            new_x = cx - self.drag_offset[0]
-            new_y = cy - self.drag_offset[1]
+            new_x = scx - self.drag_offset[0]
+            new_y = scy - self.drag_offset[1]
             
-            # clamp to screen
-            new_x = max(0, min(new_x, 640 - self.browser_widget.width()))
-            new_y = max(0, min(new_y, 480 - self.browser_widget.height()))
+            # clamp to window
+            new_x = max(0, min(new_x, win_w - self.browser_widget.width()))
+            new_y = max(0, min(new_y, win_h - self.browser_widget.height()))
             
             # smooth move
             curr_x = self.browser_widget.x()
@@ -293,18 +350,16 @@ class MainWindow(QMainWindow):
         # 4. Update Cursor State
         cursor_state = ARCursor.STATE_IDLE
         if found and self.browser_widget.isVisible():
-            if self.browser_widget.geometry().contains(ix, iy):
+            if self.browser_widget.geometry().contains(six, siy):
                 cursor_state = ARCursor.STATE_HOVER
         if g in (GESTURE_THUMB, GESTURE_PINCH):
             cursor_state = ARCursor.STATE_CLICK
             
         self.cursor.update((ix, iy), cursor_state, found)
         
-        # We need to draw the cursor onto the overlay frame.
-        # Since ARCursor uses BGR tuples, we can draw on a temp BGR frame, then apply it to the RGBA overlay.
-        # But wait, OpenCV cv2.circle supports 4 channels if we supply a 4-tuple color.
-        # To avoid modifying core/cursor.py, we draw on a temp BGR frame, then alpha-blend it onto the overlay.
-        temp_cursor_bgr = np.zeros((480, 640, 3), dtype=np.uint8)
+        # Draw cursor onto the overlay frame (in camera space)
+        fh, fw = frame.shape[:2]
+        temp_cursor_bgr = np.zeros((fh, fw, 3), dtype=np.uint8)
         self.cursor.draw(temp_cursor_bgr)
         gray_cursor = cv2.cvtColor(temp_cursor_bgr, cv2.COLOR_BGR2GRAY)
         _, alpha_cursor = cv2.threshold(gray_cursor, 1, 255, cv2.THRESH_BINARY)
