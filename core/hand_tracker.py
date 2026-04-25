@@ -5,6 +5,7 @@ Replaces cvzone's HandDetector which depends on the removed mp.solutions API.
 
 import cv2
 import os
+import urllib.request
 import mediapipe as mp
 from mediapipe.tasks.python import vision as mp_vision
 from mediapipe.tasks.python import BaseOptions
@@ -40,11 +41,14 @@ class HandTracker:
 
     def __init__(self, min_detection_confidence=0.6, min_tracking_confidence=0.5, num_hands=1):
         if not os.path.exists(_MODEL_PATH):
-            raise FileNotFoundError(
-                f"Hand landmarker model not found at: {_MODEL_PATH}\n"
-                "Download it from: https://storage.googleapis.com/mediapipe-models/"
-                "hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
-            )
+            print(f"Downloading MediaPipe Hand Landmarker model to {_MODEL_PATH}...")
+            url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
+            os.makedirs(os.path.dirname(_MODEL_PATH), exist_ok=True)
+            try:
+                urllib.request.urlretrieve(url, _MODEL_PATH)
+                print("Download complete!")
+            except Exception as e:
+                raise FileNotFoundError(f"Failed to download model from {url}. Error: {e}")
 
         options = mp_vision.HandLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=_MODEL_PATH),
