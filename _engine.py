@@ -17,7 +17,7 @@ import os
 import numpy as np
 
 # PyQt6 imports for GUI and embedded browser
-from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QGraphicsOpacityEffect
+from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QGraphicsOpacityEffect, QLineEdit
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QPoint, QUrl, QPointF
 from PyQt6.QtGui import QImage, QPixmap, QMouseEvent
@@ -238,6 +238,26 @@ class MainWindow(QMainWindow):
         self.web_view = QWebEngineView()
         self.web_view.setUrl(QUrl("https://www.youtube.com"))
         
+        # URL Bar
+        self.url_bar = QLineEdit()
+        self.url_bar.setStyleSheet("""
+            QLineEdit {
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 2px 6px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #00e5ff;
+            }
+        """)
+        self.url_bar.setPlaceholderText("Search Google or type a URL...")
+        self.url_bar.returnPressed.connect(self.navigate_to_url)
+        self.web_view.urlChanged.connect(self.update_url_bar)
+        
+        t_layout.addWidget(self.url_bar)
+        
         layout.addWidget(self.toolbar)
         layout.addWidget(self.web_view)
         
@@ -346,13 +366,26 @@ class MainWindow(QMainWindow):
                 QApplication.sendEvent(child, release)
                 print(f"  >> Simulated Click on App Toolbar")
 
+    def update_url_bar(self, q):
+        self.url_bar.setText(q.toString())
+
+    def navigate_to_url(self):
+        url = self.url_bar.text()
+        if not url.startswith("http"):
+            # If it's not a direct URL, do a Google search
+            if "." not in url or " " in url:
+                url = "https://www.google.com/search?q=" + url.replace(" ", "+")
+            else:
+                url = "https://" + url
+        self.web_view.setUrl(QUrl(url))
+
     def update_frame(self, frame, overlay_frame, state):
         g = state['gesture']
         found = state['hand_found']
         cx, cy = state['hand_center']
         ix, iy = state['index_tip']
         fps = state['fps']
-        
+
         # Get current window dimensions for coordinate scaling
         win_w = self.central.width()
         win_h = self.central.height()
