@@ -1,6 +1,6 @@
 # Arixon Vision 🕶️
 
-A lightweight, spatial computing camera overlay built with Python. Designed to run on low-end hardware, Arixon Vision turns your webcam feed into an interactive Mixed-Reality interface, allowing you to browse the web entirely using hand gestures.
+A lightweight Virtual Desktop Overlay built with Python. Designed to run on low-end hardware, Arixon Vision turns your webcam feed into an interactive virtual interface, allowing you to browse the web entirely using hand gestures.
 
 ## ✨ Features
 
